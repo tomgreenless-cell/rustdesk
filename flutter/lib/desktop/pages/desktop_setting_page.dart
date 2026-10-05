@@ -2568,6 +2568,14 @@ class _AboutState extends State<_About> {
                     translate('Website'),
                     style: linkStyle,
                   ).marginSymmetric(vertical: 4.0)),
+              InkWell(
+                  onTap: () {
+                    launchUrlString('https://github.com/tomgreenless-cell/rustdesk');
+                  },
+                  child: Text(
+                    'Source Code (AGPL-3.0)',
+                    style: linkStyle,
+                  ).marginSymmetric(vertical: 4.0)),
               Container(
                 decoration: const BoxDecoration(color: Color(0xFF2c8cff)),
                 padding:
@@ -2580,7 +2588,7 @@ class _AboutState extends State<_About> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Copyright © ${DateTime.now().toString().substring(0, 4)} Purslane Tech Pte. Ltd.\n$license',
+                            'Unified Remote is a modified build of RustDesk.\nOriginal copyright © ${DateTime.now().toString().substring(0, 4)} Purslane Tech Pte. Ltd.\n$license',
                             style: const TextStyle(color: Colors.white),
                           ),
                           Text(
