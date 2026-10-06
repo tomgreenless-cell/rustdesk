@@ -307,8 +307,13 @@ fn correct_app_name(s: &str) -> String {
     if let Some(bundleid) = get_bundle_id() {
         s = s.replace("com.carriez.rustdesk", &bundleid);
     }
-    s = s.replace("rustdesk", &crate::get_app_name().to_lowercase());
-    s = s.replace("RustDesk", &crate::get_app_name());
+    // Do NOT blanket-replace "RustDesk"/"rustdesk" here: these install/update/uninstall
+    // scripts and plists reference the real on-disk bundle folder name, the real
+    // executable name, and the real running process name (e.g. `pgrep -x 'RustDesk'`
+    // in update.scpt), none of which are renamed by the build even when the
+    // display app name (crate::get_app_name()) is rebranded. Substituting them broke
+    // the generated LaunchDaemon/LaunchAgent paths whenever the display name contains
+    // a space, and would have broken self-update's process lookup too.
     s
 }
 

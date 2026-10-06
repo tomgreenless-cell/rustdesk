@@ -131,9 +131,8 @@ class _OnlineStatusWidgetState extends State<OnlineStatusWidget> {
             ),
             // stop
             if (!isIncomingOnly) startServiceWidget(),
-            // ready && public
-            // No need to show the guide if is custom client.
-            if (!isIncomingOnly) setupServerWidget(),
+            // Unified Remote always ships with its own server baked in at build time,
+            // so the "set up your own server" guide never applies here.
           ],
         );
 
