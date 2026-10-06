@@ -954,9 +954,15 @@ jobs:
             ./flutter/macos/Runner/Release.entitlements
           create-dmg --icon "RustDesk.app" 200 190 --hide-extension "RustDesk.app" --window-size 800 400 --app-drop-link 600 185 rustdesk-${{ env.VERSION }}.dmg ./flutter/build/macos/Build/Products/Release/RustDesk.app
           codesign --force --options runtime -s ${{ secrets.MACOS_CODESIGN_IDENTITY }} --deep --strict rustdesk-${{ env.VERSION }}.dmg -vvv
-          # notarize the rustdesk-${{ env.VERSION }}.dmg (skipped until notarization credentials are configured)
+          # notarize the rustdesk-${{ env.VERSION }}.dmg (skipped until notarization credentials are configured).
+          # Apple's notary service has been intermittently very slow; never let a slow/stuck
+          # notarization request fail the whole build and throw away an otherwise-good signed dmg.
           if [ -f "${{ github.workspace }}/rustdesk.json" ]; then
-            rcodesign notary-submit --api-key-path ${{ github.workspace }}/rustdesk.json --staple rustdesk-${{ env.VERSION }}.dmg
+            if rcodesign notary-submit --api-key-path ${{ github.workspace }}/rustdesk.json --staple --max-wait-seconds 300 rustdesk-${{ env.VERSION }}.dmg; then
+              echo "Notarization succeeded and ticket stapled."
+            else
+              echo "::warning::Notarization did not complete in time (Apple notary service slow/stuck). Continuing with a signed-but-unnotarized dmg; users will need right-click > Open on first launch."
+            fi
           else
             echo "No notarization key found, skipping notarization. App is signed but not notarized."
           fi
