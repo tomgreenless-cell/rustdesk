@@ -919,10 +919,12 @@ pub fn update_me() -> ResultType<()> {
         bail!("Unknown app directory of current exe file: {:?}", cmd);
     };
 
-    let app_name = crate::get_app_name();
+    // Must match the real, literal bundle/executable/process name the build
+    // produces (see correct_app_name()'s doc comment) -- not the branded
+    // display name, which the bundle is never actually renamed to.
+    let app_name = "RustDesk".to_owned();
     if is_installed_daemon && !is_service_stopped {
-        let agent = format!("{}_server.plist", crate::get_full_name());
-        let agent_plist_file = format!("/Library/LaunchAgents/{}", agent);
+        let agent_plist_file = "/Library/LaunchAgents/com.carriez.RustDesk_server.plist".to_owned();
         update_daemon_agent(agent_plist_file, app_dir, true);
     } else {
         // `kill -9` may not work without "administrator privileges"
@@ -1046,7 +1048,12 @@ fn validate_update_tree(path: &Path, framework_root: Option<&Path>) -> ResultTyp
 /// Performs a silent update from a DMG file without any osascript dialog.
 /// Must be called from a process running as root (e.g. the service binary).
 pub fn update_from_dmg_as_root(dmg_path: &str, expected_version: &str) -> ResultType<()> {
-    let app_name = crate::get_app_name();
+    // Must match the real, literal bundle/executable/process name the build
+    // produces (see correct_app_name()'s doc comment) -- not the branded
+    // display name, which the bundle is never actually renamed to. A space
+    // in a branded display name would also always trip the safety check
+    // below.
+    let app_name = "RustDesk".to_owned();
     if app_name.is_empty()
         || !app_name
             .bytes()
@@ -1811,7 +1818,9 @@ fn extract_dmg_inner(dmg_path: &str, target_dir: &str) -> ResultType<()> {
     }
     let _guard = DmgGuard(mount_point.clone());
 
-    let app_name = format!("{}.app", crate::get_app_name());
+    // Must match the real, literal bundle name inside the update DMG (see
+    // correct_app_name()'s doc comment) -- not the branded display name.
+    let app_name = "RustDesk.app".to_owned();
     let src_path = format!("{}/{}", mount_point, app_name);
     let dest_path = format!("{}/{}", target_dir, app_name);
 
@@ -1839,7 +1848,10 @@ fn extract_dmg_inner(dmg_path: &str, target_dir: &str) -> ResultType<()> {
 }
 
 fn update_extracted(target_dir: &str) -> ResultType<()> {
-    let app_name = crate::get_app_name();
+    // Must match the real, literal bundle/executable name the build
+    // produces (see correct_app_name()'s doc comment) -- not the branded
+    // display name, which the bundle is never actually renamed to.
+    let app_name = "RustDesk".to_owned();
     let exe_path = format!(
         "{}/{}.app/Contents/MacOS/{}",
         target_dir, app_name, app_name
