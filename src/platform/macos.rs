@@ -187,8 +187,11 @@ pub fn install_service() -> bool {
 // No need to merge the existing dup code, because the code in these two functions are too critical.
 // New code should be written in a common function.
 pub fn is_installed_daemon(prompt: bool) -> bool {
-    let daemon = format!("{}_service.plist", crate::get_full_name());
-    let agent = format!("{}_server.plist", crate::get_full_name());
+    // These must match the real, literal filenames install.scpt/update.scpt write
+    // (see correct_app_name()'s doc comment for why those stay literal "RustDesk"
+    // instead of the branded display name).
+    let daemon = "com.carriez.RustDesk_service.plist".to_owned();
+    let agent = "com.carriez.RustDesk_server.plist".to_owned();
     let agent_plist_file = format!("/Library/LaunchAgents/{}", agent);
     if !prompt {
         // in macos 13, there is new way to check if they are running or enabled, https://developer.apple.com/documentation/servicemanagement/updating-helper-executables-from-earlier-versions-of-macos#Respond-to-changes-in-System-Settings
@@ -340,14 +343,10 @@ fn write_plist_atomically(path: &str, body: &str) -> ResultType<()> {
 }
 
 pub fn write_plists() -> ResultType<()> {
-    let daemon_plist_path = format!(
-        "/Library/LaunchDaemons/com.carriez.{}_service.plist",
-        crate::get_app_name()
-    );
-    let agent_plist_path = format!(
-        "/Library/LaunchAgents/com.carriez.{}_server.plist",
-        crate::get_app_name()
-    );
+    // Literal, matching the real filenames install.scpt/update.scpt write
+    // (see correct_app_name()'s doc comment).
+    let daemon_plist_path = "/Library/LaunchDaemons/com.carriez.RustDesk_service.plist".to_owned();
+    let agent_plist_path = "/Library/LaunchAgents/com.carriez.RustDesk_server.plist".to_owned();
     let Some(daemon_plist) = PRIVILEGES_SCRIPTS_DIR.get_file("daemon.plist") else {
         bail!("daemon.plist not found in embedded resources");
     };
@@ -389,8 +388,10 @@ pub fn uninstall_service(show_new_window: bool, sync: bool) -> bool {
                 log::error!("run osascript failed: {}", e);
             }
             _ => {
-                let agent = format!("{}_server.plist", crate::get_full_name());
-                let agent_plist_file = format!("/Library/LaunchAgents/{}", agent);
+                // Literal, matching the real filename install.scpt/uninstall.scpt write
+                // (see correct_app_name()'s doc comment).
+                let agent_plist_file =
+                    "/Library/LaunchAgents/com.carriez.RustDesk_server.plist".to_owned();
                 let uninstalled = !std::path::Path::new(&agent_plist_file).exists();
                 log::info!(
                     "Agent file {} uninstalled: {}",
@@ -405,13 +406,13 @@ pub fn uninstall_service(show_new_window: bool, sync: bool) -> bool {
                     }
                     crate::ipc::set_option("stop-service", "Y");
                     std::process::Command::new("launchctl")
-                        .args(&["remove", &format!("{}_server", crate::get_full_name())])
+                        .args(&["remove", "com.carriez.RustDesk_server"])
                         .status()
                         .ok();
                     if show_new_window {
                         std::process::Command::new("open")
                             .arg("-n")
-                            .arg(&format!("/Applications/{}.app", crate::get_app_name()))
+                            .arg("/Applications/RustDesk.app")
                             .spawn()
                             .ok();
                         // leave open a little time
@@ -872,11 +873,14 @@ pub fn block_input(_v: bool) -> (bool, String) {
 }
 
 pub fn is_installed() -> bool {
+    // Must match the real, literal app bundle name the build produces
+    // (see correct_app_name()'s doc comment in this file) -- not the branded
+    // display name, which the bundle folder is never actually renamed to.
     if let Ok(p) = std::env::current_exe() {
         return p
             .to_str()
             .unwrap_or_default()
-            .starts_with(&format!("/Applications/{}.app", crate::get_app_name()));
+            .starts_with("/Applications/RustDesk.app");
     }
     false
 }
