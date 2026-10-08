@@ -1,0 +1,26 @@
+name: Cleanup old Actions artifacts
+on:
+  schedule:
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - name: Delete artifacts older than 6 hours
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # 6 hours is comfortably longer than any single workflow run in this repo,
+          # so this never touches an artifact a still-running job might need.
+          cutoff=$(date -u -d '6 hours ago' +%s)
+          gh api "repos/${{ github.repository }}/actions/artifacts" --paginate --jq '.artifacts[] | "\(.id) \(.created_at)"' | \
+          while read -r id created_at; do
+            created_epoch=$(date -u -d "$created_at" +%s)
+            if [ "$created_epoch" -lt "$cutoff" ]; then
+              echo "Deleting artifact $id (created $created_at)"
+              gh api -X DELETE "repos/${{ github.repository }}/actions/artifacts/$id" || true
+            fi
+          done
