@@ -927,6 +927,19 @@ jobs:
           CREATE_DMG="$(readlink -f "$CREATE_DMG")"
           sed -i -e 's/MAXIMUM_UNMOUNTING_ATTEMPTS=3/MAXIMUM_UNMOUNTING_ATTEMPTS=7/' "$CREATE_DMG"
           create-dmg --volname "Unified Remote" --icon "RustDesk.app" 200 190 --hide-extension "RustDesk.app" --window-size 800 400 --app-drop-link 600 185 rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.dmg ./flutter/build/macos/Build/Products/Release/RustDesk.app
+          # create-dmg's --volname is unreliable on this runner (silently falls back to the
+          # filename-derived default), so force the correct HFS volume name ourselves by
+          # round-tripping the dmg through a writable copy.
+          DMG_FILE="rustdesk-${{ env.VERSION }}-${{ matrix.job.arch }}.dmg"
+          RW_DMG="/tmp/$(basename "$DMG_FILE" .dmg)-rw.dmg"
+          MNT_DIR="$(mktemp -d)"
+          hdiutil convert "$DMG_FILE" -format UDRW -o "$RW_DMG"
+          hdiutil attach "$RW_DMG" -mountpoint "$MNT_DIR" -nobrowse -noautoopen
+          diskutil rename "$MNT_DIR" "Unified Remote"
+          hdiutil detach "$MNT_DIR"
+          rm -f "$DMG_FILE"
+          hdiutil convert "$RW_DMG" -format UDZO -o "$DMG_FILE"
+          rm -f "$RW_DMG"
 
       - name: Upload unsigned macOS app
         if: env.UPLOAD_ARTIFACT == 'true'
@@ -953,6 +966,20 @@ jobs:
             ${{ secrets.MACOS_CODESIGN_IDENTITY }} \
             ./flutter/macos/Runner/Release.entitlements
           create-dmg --volname "Unified Remote" --icon "RustDesk.app" 200 190 --hide-extension "RustDesk.app" --window-size 800 400 --app-drop-link 600 185 rustdesk-${{ env.VERSION }}.dmg ./flutter/build/macos/Build/Products/Release/RustDesk.app
+          # create-dmg's --volname is unreliable on this runner (silently falls back to the
+          # filename-derived default), so force the correct HFS volume name ourselves by
+          # round-tripping the dmg through a writable copy. Must happen BEFORE the dmg codesign
+          # below, since modifying the dmg after signing would invalidate the signature.
+          DMG_FILE="rustdesk-${{ env.VERSION }}.dmg"
+          RW_DMG="/tmp/$(basename "$DMG_FILE" .dmg)-rw.dmg"
+          MNT_DIR="$(mktemp -d)"
+          hdiutil convert "$DMG_FILE" -format UDRW -o "$RW_DMG"
+          hdiutil attach "$RW_DMG" -mountpoint "$MNT_DIR" -nobrowse -noautoopen
+          diskutil rename "$MNT_DIR" "Unified Remote"
+          hdiutil detach "$MNT_DIR"
+          rm -f "$DMG_FILE"
+          hdiutil convert "$RW_DMG" -format UDZO -o "$DMG_FILE"
+          rm -f "$RW_DMG"
           codesign --force --options runtime -s ${{ secrets.MACOS_CODESIGN_IDENTITY }} --deep --strict rustdesk-${{ env.VERSION }}.dmg -vvv
           # notarize the rustdesk-${{ env.VERSION }}.dmg (skipped until notarization credentials are configured).
           # Apple's notary service has been intermittently very slow; never let a slow/stuck
